@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, useWindowDimensions } from 'react-native';
 import { colors } from '../theme/colors';
 import { spacing } from '../theme/spacing';
 import { Card } from '../components/Card';
@@ -7,6 +7,8 @@ import { Menu, Bell, User, Calculator, Store, MoreVertical } from 'lucide-react-
 import { productService, Product } from '../services/productService';
 
 export default function Dashboard({ navigation }: any) {
+  const { width } = useWindowDimensions();
+  const isLargeScreen = width > 768;
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -42,7 +44,8 @@ export default function Dashboard({ navigation }: any) {
   }
 
   return (
-    <ScrollView style={styles.container}>
+    <View style={styles.outerContainer}>
+      <ScrollView style={[styles.container, isLargeScreen && styles.largeScreenContainer]}>
       {/* Header */}
       <View style={styles.header}>
         <Menu color={colors.primary} size={24} />
@@ -135,13 +138,29 @@ export default function Dashboard({ navigation }: any) {
           </View>
         </Card>
       </View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  outerContainer: {
+    flex: 1,
+    backgroundColor: colors.background,
+    alignItems: 'center',
+    width: '100%',
+  },
+  largeScreenContainer: {
+    maxWidth: 600,
+    width: '100%',
+    backgroundColor: colors.white,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderColor: colors.slate100,
+  },
   container: {
     flex: 1,
+    width: '100%',
     backgroundColor: colors.white,
   },
   centered: {

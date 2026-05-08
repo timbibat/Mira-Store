@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, ActivityIndicator, RefreshControl, useWindowDimensions } from 'react-native';
 import { colors } from '../theme/colors';
 import { spacing } from '../theme/spacing';
-import { Search, SlidersHorizontal, MoreVertical, Coffee, FlaskConical, Wine, Package, ChevronLeft, ChevronRight, Image as ImageIcon, ShoppingCart } from 'lucide-react-native';
+import { Search, SlidersHorizontal, MoreVertical, Coffee, FlaskConical, Wine, Package, ChevronLeft, ChevronRight, Image as ImageIcon, ShoppingCart, Plus } from 'lucide-react-native';
 import { productService, Product } from '../services/productService';
 import { salesService } from '../services/salesService';
 import { Modal, Alert } from 'react-native';
 
 export default function InventoryList({ navigation }: any) {
+  const { width } = useWindowDimensions();
+  const isLargeScreen = width > 768;
   const [search, setSearch] = useState('');
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -160,7 +162,8 @@ export default function InventoryList({ navigation }: any) {
   );
 
   return (
-    <View style={styles.container}>
+    <View style={styles.outerContainer}>
+      <View style={[styles.container, isLargeScreen && styles.largeScreenContainer]}>
       <View style={styles.header}>
         <Text style={styles.title}>Mira Inventory</Text>
         <View style={styles.itemCountBadge}>
@@ -195,9 +198,23 @@ export default function InventoryList({ navigation }: any) {
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <Text style={styles.emptyStateText}>No items found.</Text>
+            <TouchableOpacity 
+              style={styles.addFirstButton}
+              onPress={() => navigation.navigate('AddItem')}
+            >
+              <Text style={styles.addFirstButtonText}>Add Your First Product</Text>
+            </TouchableOpacity>
           </View>
         }
       />
+
+      {/* Floating Action Button for Adding Items */}
+      <TouchableOpacity 
+        style={[styles.fab, isLargeScreen && styles.fabLargeScreen]}
+        onPress={() => navigation.navigate('AddItem')}
+      >
+        <Plus color={colors.white} size={32} />
+      </TouchableOpacity>
 
       {/* Sell Modal */}
       <Modal
@@ -260,13 +277,34 @@ export default function InventoryList({ navigation }: any) {
           </TouchableOpacity>
         </View>
       </View>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  outerContainer: {
+    flex: 1,
+    backgroundColor: colors.background,
+    alignItems: 'center',
+    width: '100%',
+  },
+  largeScreenContainer: {
+    maxWidth: 600, // Better centered width for sari-sari store context
+    width: '100%',
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderColor: colors.slate100,
+    backgroundColor: colors.white,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 3,
+  },
   container: {
     flex: 1,
+    width: '100%',
     backgroundColor: colors.background,
   },
   centered: {
@@ -572,6 +610,41 @@ const styles = StyleSheet.create({
   },
   confirmButtonText: {
     color: colors.white,
+    fontWeight: '700',
+    fontSize: 16,
+  },
+  fab: {
+    position: 'absolute',
+    bottom: 90, // Moved up to clear the pagination bar
+    right: 24,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4.65,
+    zIndex: 10,
+  },
+  fabLargeScreen: {
+    right: 40,
+    bottom: 100, // Also adjusted for large screens
+  },
+  addFirstButton: {
+    marginTop: spacing.lg,
+    backgroundColor: colors.secondaryContainer,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: colors.primary,
+  },
+  addFirstButtonText: {
+    color: colors.primary,
     fontWeight: '700',
     fontSize: 16,
   },

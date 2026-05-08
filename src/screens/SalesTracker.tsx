@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, FlatList } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, FlatList, useWindowDimensions } from 'react-native';
 import { colors } from '../theme/colors';
 import { spacing } from '../theme/spacing';
 import { Card } from '../components/Card';
@@ -7,6 +7,8 @@ import { TrendingUp, Receipt, Calendar, ArrowUpRight, ArrowDownRight, Package } 
 import { salesService, Sale } from '../services/salesService';
 
 export default function SalesTracker({ navigation }: any) {
+  const { width } = useWindowDimensions();
+  const isLargeScreen = width > 768;
   const [sales, setSales] = useState<Sale[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -75,7 +77,8 @@ export default function SalesTracker({ navigation }: any) {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={styles.outerContainer}>
+      <View style={[styles.container, isLargeScreen && styles.largeScreenContainer]}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Sales Tracker</Text>
       </View>
@@ -149,13 +152,29 @@ export default function SalesTracker({ navigation }: any) {
           />
         )}
       </ScrollView>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  outerContainer: {
+    flex: 1,
+    backgroundColor: colors.background,
+    alignItems: 'center',
+    width: '100%',
+  },
+  largeScreenContainer: {
+    maxWidth: 600,
+    width: '100%',
+    backgroundColor: colors.white,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderColor: colors.slate100,
+  },
   container: {
     flex: 1,
+    width: '100%',
     backgroundColor: colors.background,
   },
   centered: {
