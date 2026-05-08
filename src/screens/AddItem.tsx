@@ -1,24 +1,41 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, ScrollView, TouchableOpacity, ActivityIndicator, Alert, useWindowDimensions } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TextInput, ScrollView, TouchableOpacity, ActivityIndicator, Alert, useWindowDimensions, Image } from 'react-native';
 import { colors } from '../theme/colors';
 import { spacing } from '../theme/spacing';
 import { Button } from '../components/Button';
-import { X, Camera } from 'lucide-react-native';
-import { productService } from '../services/productService';
+import { X, Camera, Image as ImageIcon } from 'lucide-react-native';
+import { productService, Product } from '../services/productService';
+import * as ImagePicker from 'expo-image-picker';
 
-export default function AddItem({ navigation }: any) {
+export default function AddItem({ route, navigation }: any) {
   const { width } = useWindowDimensions();
   const isLargeScreen = width > 768;
+  const editingProduct = route.params?.product as Product;
+  
   const [loading, setLoading] = useState(false);
+  const [imageUri, setImageUri] = useState<string | null>(editingProduct?.imageUrl || null);
   const [form, setForm] = useState({
-    name: '',
-    sku: '',
-    price: '',
-    stock: '',
-    unit: 'sachets',
-    category: 'General',
-    isFastMoving: false
+    name: editingProduct?.name || '',
+    sku: editingProduct?.sku || '',
+    price: editingProduct?.price.toString() || '',
+    stock: editingProduct?.stock.toString() || '',
+    unit: editingProduct?.unit || 'sachets',
+    category: editingProduct?.category || 'General',
+    isFastMoving: editingProduct?.isFastMoving || false
   });
+
+  const pickImage = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.8,
+    });
+
+    if (!result.canceled) {
+      setImageUri(result.assets[0].uri);
+    }
+  };
 
   const handleSave = async () => {
     if (!form.name || !form.sku || !form.price || !form.stock) {
@@ -28,7 +45,7 @@ export default function AddItem({ navigation }: any) {
 
     setLoading(true);
     try {
-      const productData = {
+      const productData: any = {
         name: form.name,
         sku: form.sku,
         price: parseFloat(form.price),
@@ -37,16 +54,20 @@ export default function AddItem({ navigation }: any) {
         status: parseInt(form.stock) > 10 ? 'IN STOCK' : parseInt(form.stock) > 0 ? 'LOW STOCK' : 'OUT OF STOCK',
         isFastMoving: form.isFastMoving,
         category: form.category,
-        createdAt: new Date()
       };
 
-      await productService.addProduct(productData);
-      Alert.alert('Success', 'Product added successfully!', [
-        { text: 'OK', onPress: () => navigation.goBack() }
-      ]);
+      if (editingProduct?.id) {
+        // Update mode
+        await productService.updateProduct(editingProduct.id, productData);
+        navigation.navigate('InventoryList');
+      } else {
+        // Add mode
+        await productService.addProduct(productData, imageUri || undefined);
+        navigation.navigate('InventoryList');
+      }
     } catch (error) {
-      console.error('Error adding product:', error);
-      Alert.alert('Error', 'Failed to add product. Please try again.');
+      console.error('Error saving product:', error);
+      Alert.alert('Error', 'Failed to save product. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -56,15 +77,21 @@ export default function AddItem({ navigation }: any) {
     <View style={styles.outerContainer}>
       <ScrollView style={[styles.container, isLargeScreen && styles.largeScreenContainer]}>
         <View style={styles.header}>
-          <Text style={styles.title}>Add New Item</Text>
+          <Text style={styles.title}>{editingProduct ? 'Edit Product' : 'Add New Item'}</Text>
           <X color={colors.onSurface} size={24} onPress={() => navigation.goBack()} />
         </View>
 
         <View style={styles.form}>
-          {/* Image Placeholder */}
-          <TouchableOpacity style={styles.imagePicker}>
-            <Camera color={colors.slate500} size={32} />
-            <Text style={styles.imagePickerText}>Add Product Photo</Text>
+          {/* Image Picker */}
+          <TouchableOpacity style={styles.imagePicker} onPress={pickImage}>
+            {imageUri ? (
+              <Image source={{ uri: imageUri }} style={styles.previewImage} />
+            ) : (
+              <>
+                <Camera color={colors.slate500} size={32} />
+                <Text style={styles.imagePickerText}>Add Product Photo</Text>
+              </>
+            )}
           </TouchableOpacity>
 
           <View style={styles.inputGroup}>
@@ -142,7 +169,7 @@ export default function AddItem({ navigation }: any) {
           </TouchableOpacity>
 
           <Button 
-            title={loading ? "Saving..." : "Save Product"} 
+            title={loading ? "Saving..." : (editingProduct ? "Update Product" : "Save Product")} 
             style={styles.saveButton} 
             onPress={handleSave}
             disabled={loading}
@@ -189,7 +216,7 @@ const styles = StyleSheet.create({
     padding: spacing.md,
   },
   imagePicker: {
-    height: 150,
+    height: 180,
     backgroundColor: colors.white,
     borderRadius: spacing.radius,
     borderWidth: 1,
@@ -198,6 +225,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: spacing.lg,
+    overflow: 'hidden',
+  },
+  previewImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
   },
   imagePickerText: {
     color: colors.slate500,

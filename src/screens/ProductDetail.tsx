@@ -1,14 +1,47 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, useWindowDimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Image, useWindowDimensions, Alert, TouchableOpacity } from 'react-native';
 import { colors } from '../theme/colors';
 import { spacing } from '../theme/spacing';
 import { Button } from '../components/Button';
 import { ArrowLeft, Edit3, Trash2 } from 'lucide-react-native';
+import { productService } from '../services/productService';
 
 export default function ProductDetail({ route, navigation }: any) {
   const { product } = route.params;
   const { width } = useWindowDimensions();
   const isLargeScreen = width > 768;
+
+  const handleDelete = () => {
+    const confirmDelete = () => {
+      productService.deleteProduct(product.id, product.imageUrl)
+        .then(() => {
+          navigation.navigate('InventoryList');
+        })
+        .catch(error => {
+          console.error('Error deleting product:', error);
+          Alert.alert('Error', 'Failed to delete product.');
+        });
+    };
+
+    if (width > 768) { // Web detection
+      if (window.confirm(`Are you sure you want to delete ${product.name}?`)) {
+        confirmDelete();
+      }
+    } else {
+      Alert.alert(
+        'Delete Product',
+        `Are you sure you want to delete ${product.name}?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Delete', style: 'destructive', onPress: confirmDelete }
+        ]
+      );
+    }
+  };
+
+  const handleEdit = () => {
+    navigation.navigate('AddItem', { product });
+  };
 
   return (
     <View style={styles.outerContainer}>
@@ -16,13 +49,23 @@ export default function ProductDetail({ route, navigation }: any) {
         <View style={styles.header}>
           <ArrowLeft color={colors.onSurface} size={24} onPress={() => navigation.goBack()} />
           <View style={styles.headerActions}>
-            <Edit3 color={colors.onSurface} size={20} style={styles.icon} />
-            <Trash2 color={colors.crimson} size={20} />
+            <TouchableOpacity onPress={handleEdit}>
+              <Edit3 color={colors.onSurface} size={24} style={styles.icon} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={handleDelete}>
+              <Trash2 color={colors.error} size={24} />
+            </TouchableOpacity>
           </View>
         </View>
 
-        <View style={styles.imagePlaceholder}>
-          <Text style={styles.imageText}>Product Image</Text>
+        <View style={styles.imageContainer}>
+          {product.imageUrl ? (
+            <Image source={{ uri: product.imageUrl }} style={styles.productImage} />
+          ) : (
+            <View style={styles.imagePlaceholder}>
+              <Text style={styles.imageText}>No Product Image</Text>
+            </View>
+          )}
         </View>
 
         <View style={styles.content}>
@@ -40,7 +83,7 @@ export default function ProductDetail({ route, navigation }: any) {
                 {product.stock} {product.unit || 'Units'}
               </Text>
             </View>
-            <Button title="Update Stock" variant="outline" />
+            <Button title="Update Stock" variant="outline" onPress={handleEdit} />
           </View>
 
           <View style={styles.detailsBox}>
@@ -87,9 +130,18 @@ const styles = StyleSheet.create({
   icon: {
     marginRight: spacing.md,
   },
-  imagePlaceholder: {
+  imageContainer: {
+    width: '100%',
     height: 300,
     backgroundColor: colors.slate50,
+  },
+  productImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  imagePlaceholder: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
