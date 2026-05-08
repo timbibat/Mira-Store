@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, ScrollView, TouchableOpacity, ActivityIndicator, Alert, useWindowDimensions, Image } from 'react-native';
+import { View, Text, TextInput, ScrollView, TouchableOpacity, ActivityIndicator, Alert, useWindowDimensions, Image, Modal, Platform } from 'react-native';
 import tw from 'twrnc';
 import { colors } from '../theme/colors';
 import { Button } from '../components/Button';
@@ -12,6 +12,7 @@ export default function AddItem({ route, navigation }: any) {
   const editingProduct = route.params?.product as Product;
   
   const [loading, setLoading] = useState(false);
+  const [photoModalVisible, setPhotoModalVisible] = useState(false);
   const [imageUri, setImageUri] = useState<string | null>(editingProduct?.imageUrl || null);
   const [form, setForm] = useState({
     name: editingProduct?.name || '',
@@ -21,6 +22,25 @@ export default function AddItem({ route, navigation }: any) {
     category: editingProduct?.category || 'General',
     isFastMoving: editingProduct?.isFastMoving || false
   });
+
+  const takePhoto = async () => {
+    const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+    
+    if (permissionResult.granted === false) {
+      Alert.alert('Permission Required', 'You need to grant camera permissions to use this feature.');
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.8,
+    });
+
+    if (!result.canceled) {
+      setImageUri(result.assets[0].uri);
+    }
+  };
 
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -33,6 +53,11 @@ export default function AddItem({ route, navigation }: any) {
     if (!result.canceled) {
       setImageUri(result.assets[0].uri);
     }
+  };
+
+  const handleImageSelection = () => {
+    // Using a custom modal guarantees it works on React Native Web
+    setPhotoModalVisible(true);
   };
 
   const handleSave = async () => {
@@ -77,10 +102,10 @@ export default function AddItem({ route, navigation }: any) {
         </View>
 
         <View style={tw`p-4`}>
-          {/* Image Picker */}
+          {/* Image Picker Trigger */}
           <TouchableOpacity 
             style={tw`h-[180px] bg-white rounded-2xl border border-slate-200 justify-center items-center mb-6 overflow-hidden border-dashed`} 
-            onPress={pickImage}
+            onPress={handleImageSelection}
           >
             {imageUri ? (
               <Image source={{ uri: imageUri }} style={tw`w-full h-full`} resizeMode="cover" />
@@ -171,6 +196,41 @@ export default function AddItem({ route, navigation }: any) {
           {loading && <ActivityIndicator style={tw`mt-2`} color={colors.primary} />}
         </View>
       </ScrollView>
+
+      {/* Web-Compatible Photo Options Modal */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={photoModalVisible}
+        onRequestClose={() => setPhotoModalVisible(false)}
+      >
+        <View style={tw`flex-1 bg-black/50 justify-center items-center p-4`}>
+          <View style={[tw`bg-white rounded-2xl w-full max-w-[320px] shadow-lg overflow-hidden`, { elevation: 5 }]}>
+            <Text style={tw`text-lg font-bold text-indigo-950 p-4 border-b border-slate-100 text-center`}>Product Photo</Text>
+            
+            <TouchableOpacity 
+              style={tw`p-4 border-b border-slate-100`}
+              onPress={() => { setPhotoModalVisible(false); takePhoto(); }}
+            >
+              <Text style={tw`text-base text-center text-indigo-950 font-medium`}>Take Photo</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={tw`p-4 border-b border-slate-100`}
+              onPress={() => { setPhotoModalVisible(false); pickImage(); }}
+            >
+              <Text style={tw`text-base text-center text-indigo-950 font-medium`}>Choose from Gallery</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={tw`p-4 bg-slate-50`}
+              onPress={() => setPhotoModalVisible(false)}
+            >
+              <Text style={tw`text-base text-center text-red-500 font-bold`}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }

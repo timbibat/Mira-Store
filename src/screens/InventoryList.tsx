@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, FlatList, TextInput, TouchableOpacity, ActivityIndicator, RefreshControl, useWindowDimensions, Modal, Alert, Image } from 'react-native';
 import tw from 'twrnc';
 import { colors } from '../theme/colors';
-import { Search, SlidersHorizontal, Package, ChevronLeft, ChevronRight, ShoppingCart, Plus } from 'lucide-react-native';
+import { Search, Package, ChevronLeft, ChevronRight, ShoppingCart, Plus } from 'lucide-react-native';
 import { productService, Product } from '../services/productService';
 import { salesService } from '../services/salesService';
 
@@ -175,7 +175,7 @@ export default function InventoryList({ navigation }: any) {
       </View>
 
       <View style={tw`flex-row p-4 bg-white border-b border-slate-50`}>
-        <View style={tw`flex-1 flex-row items-center bg-white px-4 rounded-xl border border-slate-200 mr-2`}>
+        <View style={tw`flex-1 flex-row items-center bg-white px-4 rounded-xl border border-slate-200`}>
           <Search color={colors.slate200} size={20} style={tw`mr-2`} />
           <TextInput
             style={tw`flex-1 py-2 text-base text-indigo-950`}
@@ -185,9 +185,6 @@ export default function InventoryList({ navigation }: any) {
             placeholderTextColor={colors.slate200}
           />
         </View>
-        <TouchableOpacity style={tw`bg-white p-2 rounded-xl border border-slate-200 justify-center items-center`}>
-          <SlidersHorizontal color={colors.onSurface} size={20} />
-        </TouchableOpacity>
       </View>
 
       <FlatList
