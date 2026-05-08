@@ -28,9 +28,47 @@ function InventoryStack() {
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = React.useState(false);
+  const [isReady, setIsReady] = React.useState(false);
+
+  React.useEffect(() => {
+    // Check for persisted auth state
+    const checkAuth = async () => {
+      try {
+        if (typeof localStorage !== 'undefined') {
+          const authValue = localStorage.getItem('mira_store_auth');
+          if (authValue === 'true') {
+            setIsAuthenticated(true);
+          }
+        }
+      } catch (e) {
+        console.error('Failed to load auth state', e);
+      } finally {
+        setIsReady(true);
+      }
+    };
+    checkAuth();
+  }, []);
+
+  const handleLogin = () => {
+    setIsAuthenticated(true);
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('mira_store_auth', 'true');
+    }
+  };
+
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    if (typeof localStorage !== 'undefined') {
+      localStorage.removeItem('mira_store_auth');
+    }
+  };
+
+  if (!isReady) {
+    return null; // Or a loading spinner
+  }
 
   if (!isAuthenticated) {
-    return <Login onLogin={() => setIsAuthenticated(true)} />;
+    return <Login onLogin={handleLogin} />;
   }
 
   return (
@@ -58,7 +96,7 @@ export default function App() {
         })}
       >
         <Tab.Screen name="Dashboard">
-          {(props) => <Dashboard {...props} onLogout={() => setIsAuthenticated(false)} />}
+          {(props) => <Dashboard {...props} onLogout={handleLogout} />}
         </Tab.Screen>
         <Tab.Screen name="Sales" component={SalesTracker} />
         <Tab.Screen name="Inventory" component={InventoryStack} />

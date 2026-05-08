@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, useWindowDimensions, Image, Modal, Dimensions, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, useWindowDimensions, Image, Modal, Dimensions, Alert, Platform } from 'react-native';
 import tw from 'twrnc';
 import { colors } from '../theme/colors';
 import { Card } from '../components/Card';
-import { Menu, Bell, User, Calculator, Store, MoreVertical, Receipt, Package } from 'lucide-react-native';
+import { Menu, Bell, User, Calculator, Store, MoreVertical, Receipt, Package, LogOut } from 'lucide-react-native';
 import { productService, Product } from '../services/productService';
 import { salesService, Sale } from '../services/salesService';
 
@@ -14,16 +14,23 @@ export default function Dashboard({ navigation, onLogout }: any) {
   const [products, setProducts] = useState<Product[]>([]);
   const [sales, setSales] = useState<Sale[]>([]);
   const [loading, setLoading] = useState(true);
+  const [logoutMenuVisible, setLogoutMenuVisible] = useState(false);
 
   const handleLogout = () => {
-    Alert.alert(
-      "Logout",
-      "Are you sure you want to log out?",
-      [
-        { text: "Cancel", style: "cancel" },
-        { text: "Logout", onPress: onLogout, style: "destructive" }
-      ]
-    );
+    if (Platform.OS === 'web') {
+      if (confirm("Are you sure you want to log out?")) {
+        onLogout();
+      }
+    } else {
+      Alert.alert(
+        "Logout",
+        "Are you sure you want to log out?",
+        [
+          { text: "Cancel", style: "cancel" },
+          { text: "Logout", onPress: onLogout, style: "destructive" }
+        ]
+      );
+    }
   };
   
   // Calculator State
@@ -100,11 +107,41 @@ export default function Dashboard({ navigation, onLogout }: any) {
         <View style={tw`pt-6 px-4 pb-4 flex-row items-center justify-between bg-violet-50`}>
           <Text style={tw`text-xl font-extrabold text-violet-600 text-center flex-1`}>Mira's Sari-Sari Store</Text>
           <View style={tw`flex-row items-center`}>
-            <TouchableOpacity onPress={handleLogout} style={tw`w-8 h-8 rounded-full bg-slate-200 justify-center items-center`}>
+            <TouchableOpacity 
+              onPress={() => setLogoutMenuVisible(true)} 
+              style={tw`w-8 h-8 rounded-full bg-slate-200 justify-center items-center`}
+            >
               <User color={colors.slate500} size={20} />
             </TouchableOpacity>
           </View>
         </View>
+
+        {/* Logout Menu Modal */}
+        <Modal
+          visible={logoutMenuVisible}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setLogoutMenuVisible(false)}
+        >
+          <TouchableOpacity 
+            style={tw`flex-1 bg-black/10`} 
+            activeOpacity={1} 
+            onPress={() => setLogoutMenuVisible(false)}
+          >
+            <View style={tw`absolute top-16 right-4 bg-white p-2 rounded-2xl shadow-xl border border-slate-100 w-40`}>
+              <TouchableOpacity 
+                style={tw`flex-row items-center p-3 rounded-xl`}
+                onPress={() => {
+                  setLogoutMenuVisible(false);
+                  handleLogout();
+                }}
+              >
+                <LogOut color={colors.error} size={20} />
+                <Text style={tw`ml-3 text-base font-bold text-red-500`}>Logout</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </Modal>
 
         <View style={tw`p-4`}>
           {/* Greeting */}
@@ -124,7 +161,7 @@ export default function Dashboard({ navigation, onLogout }: any) {
             </TouchableOpacity>
             <TouchableOpacity 
               style={tw`w-[48%] flex-row items-center justify-center py-4 rounded-xl border border-violet-600 bg-violet-600`}
-              onPress={() => navigation.navigate('Sales')}
+              onPress={() => navigation.navigate('Inventory')}
             >
               <Store color={colors.white} size={20} />
               <Text style={tw`text-base font-bold text-white ml-2`}>New Sale</Text>
@@ -200,8 +237,12 @@ export default function Dashboard({ navigation, onLogout }: any) {
           {sales.slice(0, 3).map((sale) => (
             <Card key={sale.id} style={tw`p-4 mb-2 border-slate-100`}>
               <View style={tw`flex-row items-center`}>
-                <View style={tw`w-10 h-10 rounded-full bg-violet-100 justify-center items-center`}>
-                  <Receipt color={colors.primary} size={20} />
+                <View style={tw`w-10 h-10 rounded-full bg-violet-100 justify-center items-center overflow-hidden border border-violet-100`}>
+                  {sale.items[0]?.imageUrl ? (
+                    <Image source={{ uri: sale.items[0].imageUrl }} style={tw`w-full h-full`} resizeMode="cover" />
+                  ) : (
+                    <Receipt color={colors.primary} size={20} />
+                  )}
                 </View>
                 <View style={tw`flex-1 ml-3`}>
                   <Text style={tw`text-sm font-bold text-indigo-950`} numberOfLines={1}>
