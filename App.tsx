@@ -2,7 +2,7 @@ import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { LayoutDashboard, Package } from 'lucide-react-native';
+import { LayoutDashboard, Package, TrendingUp } from 'lucide-react-native';
 import { colors } from './src/theme/colors';
 
 // Screens
@@ -10,6 +10,7 @@ import Dashboard from './src/screens/Dashboard';
 import InventoryList from './src/screens/InventoryList';
 import ProductDetail from './src/screens/ProductDetail';
 import AddItem from './src/screens/AddItem';
+import SalesTracker from './src/screens/SalesTracker';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -34,6 +35,8 @@ export default function App() {
               return <LayoutDashboard size={size} color={color} />;
             } else if (route.name === 'Inventory') {
               return <Package size={size} color={color} />;
+            } else if (route.name === 'Sales') {
+              return <TrendingUp size={size} color={color} />;
             }
           },
           tabBarActiveTintColor: colors.primaryContainer,
@@ -48,6 +51,7 @@ export default function App() {
         })}
       >
         <Tab.Screen name="Dashboard" component={Dashboard} />
+        <Tab.Screen name="Sales" component={SalesTracker} />
         <Tab.Screen name="Inventory" component={InventoryStack} />
       </Tab.Navigator>
     </NavigationContainer>

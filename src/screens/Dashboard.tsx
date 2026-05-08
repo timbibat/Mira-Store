@@ -1,12 +1,45 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { colors } from '../theme/colors';
 import { spacing } from '../theme/spacing';
 import { Card } from '../components/Card';
 import { Menu, Bell, User, Calculator, Store, MoreVertical } from 'lucide-react-native';
+import { productService, Product } from '../services/productService';
 
-export default function Dashboard() {
-  const barData = [30, 50, 40, 60, 55, 75, 70, 100]; // Sample heights for bar chart
+export default function Dashboard({ navigation }: any) {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchMetrics = async () => {
+    try {
+      const data = await productService.getProducts();
+      setProducts(data);
+    } catch (error) {
+      console.error('Error fetching metrics:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      fetchMetrics();
+    });
+    return unsubscribe;
+  }, [navigation]);
+
+  const totalItems = products.length;
+  const fullyStocked = products.filter(p => p.stock > 10).length;
+  const needsRestock = products.filter(p => p.stock <= 5).length;
+  const barData = [30, 50, 40, 60, 55, 75, 70, 100]; // Still mock, but UI is live
+
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.centered]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
 
   return (
     <ScrollView style={styles.container}>
@@ -25,7 +58,7 @@ export default function Dashboard() {
       <View style={styles.content}>
         {/* Greeting */}
         <View style={styles.greetingSection}>
-          <Text style={styles.greetingTitle}>Kumusta, Liza!</Text>
+          <Text style={styles.greetingTitle}>Kumusta, Mira!</Text>
           <Text style={styles.greetingSubtitle}>Here's your store update for today.</Text>
         </View>
 
@@ -35,37 +68,42 @@ export default function Dashboard() {
             <Calculator color={colors.onSurface} size={20} />
             <Text style={styles.outlineButtonText}>Calculator</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.actionButton, styles.solidButton]}>
+          <TouchableOpacity 
+            style={[styles.actionButton, styles.solidButton]}
+            onPress={() => navigation.navigate('Sales')}
+          >
             <Store color={colors.white} size={20} />
             <Text style={styles.solidButtonText}>New Sale</Text>
           </TouchableOpacity>
         </View>
 
         {/* Today's Sales Card */}
-        <Card style={styles.salesCard}>
-          <View style={styles.cardHeader}>
-            <Text style={styles.cardSmallTitle}>TODAY'S SALES</Text>
-            <MoreVertical color={colors.onSurface} size={20} />
-          </View>
-          <View style={styles.salesValueRow}>
-            <Text style={styles.salesValue}>₱2,450.00</Text>
-            <View style={styles.trendBox} />
-          </View>
+        <TouchableOpacity onPress={() => navigation.navigate('Sales')}>
+          <Card style={styles.salesCard}>
+            <View style={styles.cardHeader}>
+              <Text style={styles.cardSmallTitle}>TODAY'S SALES</Text>
+              <MoreVertical color={colors.onSurface} size={20} />
+            </View>
+            <View style={styles.salesValueRow}>
+              <Text style={styles.salesValue}>₱2,450.00</Text>
+              <View style={styles.trendBox} />
+            </View>
 
-          {/* Simple Bar Chart */}
-          <View style={styles.chartContainer}>
-            {barData.map((height, index) => (
-              <View 
-                key={index} 
-                style={[
-                  styles.bar, 
-                  { height: height * 0.8 }, 
-                  index === barData.length - 1 && styles.activeBar
-                ]} 
-              />
-            ))}
-          </View>
-        </Card>
+            {/* Simple Bar Chart */}
+            <View style={styles.chartContainer}>
+              {barData.map((height, index) => (
+                <View 
+                  key={index} 
+                  style={[
+                    styles.bar, 
+                    { height: height * 0.8 }, 
+                    index === barData.length - 1 && styles.activeBar
+                  ]} 
+                />
+              ))}
+            </View>
+          </Card>
+        </TouchableOpacity>
 
         {/* Store Status Card */}
         <Card style={styles.statusCard}>
@@ -73,7 +111,7 @@ export default function Dashboard() {
           
           <View style={styles.statusRow}>
             <Text style={styles.statusLabel}>Total Items</Text>
-            <Text style={styles.statusValue}>145</Text>
+            <Text style={styles.statusValue}>{totalItems}</Text>
           </View>
           
           <View style={styles.statusDivider} />
@@ -83,7 +121,7 @@ export default function Dashboard() {
               <View style={[styles.dot, { backgroundColor: colors.secondaryContainer }]} />
               <Text style={styles.statusLabel}>Fully Stocked</Text>
             </View>
-            <Text style={styles.statusValue}>120</Text>
+            <Text style={styles.statusValue}>{fullyStocked}</Text>
           </View>
 
           <View style={styles.statusDivider} />
@@ -93,7 +131,7 @@ export default function Dashboard() {
               <View style={[styles.dot, { backgroundColor: colors.primary }]} />
               <Text style={[styles.statusLabel, { color: colors.primary }]}>Needs Restock</Text>
             </View>
-            <Text style={[styles.statusValue, { color: colors.primary }]}>5</Text>
+            <Text style={[styles.statusValue, { color: colors.primary }]}>{needsRestock}</Text>
           </View>
         </Card>
       </View>
@@ -105,6 +143,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.white,
+  },
+  centered: {
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   header: {
     paddingTop: spacing.lg,

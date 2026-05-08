@@ -1,70 +1,97 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
 import { colors } from '../theme/colors';
 import { spacing } from '../theme/spacing';
-import { Search, SlidersHorizontal, MoreVertical, Coffee, FlaskConical, Wine, Package, ChevronLeft, ChevronRight } from 'lucide-react-native';
-
-const MOCK_DATA = [
-  { 
-    id: '1', 
-    name: 'Kopiko Black', 
-    sku: 'KP-BLK-01', 
-    stock: 240, 
-    unit: 'sachets',
-    price: 8.00, 
-    status: 'IN STOCK',
-    isFastMoving: true,
-    icon: Coffee
-  },
-  { 
-    id: '2', 
-    name: 'Silver Swan Soy Sauce (200ml)', 
-    sku: 'SS-SOY-200', 
-    stock: 15, 
-    unit: 'bottles',
-    price: 18.00, 
-    status: 'LOW STOCK',
-    isFastMoving: false,
-    icon: FlaskConical
-  },
-  { 
-    id: '3', 
-    name: 'Datu Puti Vinegar', 
-    sku: 'DP-VIN-200', 
-    stock: 0, 
-    unit: 'bottles',
-    price: 15.00, 
-    status: 'OUT OF STOCK',
-    isFastMoving: false,
-    icon: Wine
-  },
-  { 
-    id: '4', 
-    name: 'Surf Powder Sachet', 
-    sku: 'SRF-PWD-01', 
-    stock: 120, 
-    unit: 'sachets',
-    price: 12.00, 
-    status: 'IN STOCK',
-    isFastMoving: true,
-    icon: Package
-  },
-];
+import { Search, SlidersHorizontal, MoreVertical, Coffee, FlaskConical, Wine, Package, ChevronLeft, ChevronRight, Image as ImageIcon, ShoppingCart } from 'lucide-react-native';
+import { productService, Product } from '../services/productService';
+import { salesService } from '../services/salesService';
+import { Modal, Alert } from 'react-native';
 
 export default function InventoryList({ navigation }: any) {
   const [search, setSearch] = useState('');
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  
+  // Sell Modal State
+  const [sellModalVisible, setSellModalVisible] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [sellQuantity, setSellQuantity] = useState('1');
+  const [isSelling, setIsSelling] = useState(false);
 
-  const renderItem = ({ item }: any) => {
-    const IconComponent = item.icon;
+  const fetchProducts = async () => {
+    try {
+      const data = await productService.getProducts();
+      setProducts(data);
+    } catch (error) {
+      console.error('Error fetching products:', error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      fetchProducts();
+    });
+    return unsubscribe;
+  }, [navigation]);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchProducts();
+  };
+
+  const handleQuickSell = (product: Product) => {
+    setSelectedProduct(product);
+    setSellQuantity('1');
+    setSellModalVisible(true);
+  };
+
+  const submitSale = async () => {
+    if (!selectedProduct || !sellQuantity) return;
     
+    const qty = parseInt(sellQuantity);
+    if (isNaN(qty) || qty <= 0) {
+      Alert.alert('Error', 'Please enter a valid quantity.');
+      return;
+    }
+
+    if (qty > selectedProduct.stock) {
+      Alert.alert('Error', `Not enough stock. Only ${selectedProduct.stock} available.`);
+      return;
+    }
+
+    setIsSelling(true);
+    try {
+      await salesService.recordSale([{
+        productId: selectedProduct.id!,
+        productName: selectedProduct.name,
+        quantity: qty,
+        pricePerUnit: selectedProduct.price,
+        totalPrice: selectedProduct.price * qty
+      }]);
+      
+      Alert.alert('Success', `Sold ${qty} ${selectedProduct.name}(s)!`);
+      setSellModalVisible(false);
+      fetchProducts(); // Refresh inventory
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to record sale.');
+    } finally {
+      setIsSelling(false);
+    }
+  };
+
+  const renderItem = ({ item }: { item: Product }) => {
     return (
-      <TouchableOpacity 
-        style={styles.card}
-        onPress={() => navigation.navigate('ProductDetail', { product: item })}
-      >
-        <View style={styles.cardHeader}>
+      <View style={styles.card}>
+        <TouchableOpacity 
+          style={styles.cardHeader}
+          onPress={() => navigation.navigate('ProductDetail', { product: item })}
+        >
           <View style={styles.iconContainer}>
-            <IconComponent color={colors.primary} size={24} />
+            <Package color={colors.primary} size={24} />
           </View>
           <View style={styles.cardContent}>
             <Text style={styles.skuText}>SKU: {item.sku}</Text>
@@ -91,10 +118,7 @@ export default function InventoryList({ navigation }: any) {
               </View>
             </View>
           </View>
-          <TouchableOpacity style={styles.menuButton}>
-            <MoreVertical color={colors.slate200} size={20} />
-          </TouchableOpacity>
-        </View>
+        </TouchableOpacity>
 
         <View style={styles.divider} />
 
@@ -103,21 +127,44 @@ export default function InventoryList({ navigation }: any) {
             <Text style={styles.footerLabel}>Stock</Text>
             <Text style={styles.footerValue}>{item.stock} {item.unit}</Text>
           </View>
-          <View style={{ alignItems: 'flex-end' }}>
-            <Text style={styles.footerLabel}>Unit Price</Text>
-            <Text style={styles.footerValue}>₱{item.price.toFixed(2)}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <View style={{ alignItems: 'flex-end', marginRight: spacing.md }}>
+              <Text style={styles.footerLabel}>Unit Price</Text>
+              <Text style={styles.footerValue}>₱{Number(item.price).toFixed(2)}</Text>
+            </View>
+            <TouchableOpacity 
+              style={[styles.sellButton, item.stock === 0 && styles.sellButtonDisabled]}
+              onPress={() => handleQuickSell(item)}
+              disabled={item.stock === 0}
+            >
+              <ShoppingCart color={colors.white} size={20} />
+              <Text style={styles.sellButtonText}>Sell</Text>
+            </TouchableOpacity>
           </View>
         </View>
-      </TouchableOpacity>
+      </View>
     );
   };
+
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.centered]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
+
+  const filteredProducts = products.filter(i => 
+    i.name.toLowerCase().includes(search.toLowerCase()) || 
+    i.sku.toLowerCase().includes(search.toLowerCase())
+  );
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Tindahan Inventory</Text>
+        <Text style={styles.title}>Mira Inventory</Text>
         <View style={styles.itemCountBadge}>
-          <Text style={styles.itemCountText}>458 Items</Text>
+          <Text style={styles.itemCountText}>{products.length} Items</Text>
         </View>
       </View>
 
@@ -138,14 +185,72 @@ export default function InventoryList({ navigation }: any) {
       </View>
 
       <FlatList
-        data={MOCK_DATA.filter(i => i.name.toLowerCase().includes(search.toLowerCase()))}
+        data={filteredProducts}
         renderItem={renderItem}
-        keyExtractor={item => item.id}
+        keyExtractor={item => item.id!}
         contentContainerStyle={styles.list}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+        }
+        ListEmptyComponent={
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyStateText}>No items found.</Text>
+          </View>
+        }
       />
 
+      {/* Sell Modal */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={sellModalVisible}
+        onRequestClose={() => setSellModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Record Sale</Text>
+            <Text style={styles.modalSubtitle}>Product: {selectedProduct?.name}</Text>
+            
+            <View style={styles.quantityInputGroup}>
+              <Text style={styles.modalLabel}>How many items sold?</Text>
+              <TextInput
+                style={styles.modalInput}
+                value={sellQuantity}
+                onChangeText={setSellQuantity}
+                keyboardType="numeric"
+                autoFocus
+              />
+              <Text style={styles.availableStockText}>
+                Available: {selectedProduct?.stock} {selectedProduct?.unit}
+              </Text>
+            </View>
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity 
+                style={styles.cancelButton}
+                onPress={() => setSellModalVisible(false)}
+                disabled={isSelling}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.confirmButton, isSelling && styles.confirmButtonDisabled]}
+                onPress={submitSale}
+                disabled={isSelling}
+              >
+                {isSelling ? (
+                  <ActivityIndicator color={colors.white} size="small" />
+                ) : (
+                  <Text style={styles.confirmButtonText}>Confirm Sale</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       <View style={styles.pagination}>
-        <Text style={styles.paginationText}>Showing 1 to 4 of 458 items</Text>
+        <Text style={styles.paginationText}>Showing {filteredProducts.length} of {products.length} items</Text>
         <View style={styles.paginationButtons}>
           <TouchableOpacity style={styles.pageButton}>
             <ChevronLeft color={colors.onSurface} size={20} />
@@ -163,6 +268,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  centered: {
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   header: {
     padding: spacing.md,
@@ -225,6 +334,7 @@ const styles = StyleSheet.create({
   },
   list: {
     padding: spacing.md,
+    flexGrow: 1,
   },
   card: {
     backgroundColor: colors.white,
@@ -347,5 +457,122 @@ const styles = StyleSheet.create({
     borderColor: colors.slate200,
     padding: 6,
     borderRadius: 4,
+  },
+  emptyState: {
+    marginTop: 100,
+    alignItems: 'center',
+  },
+  emptyStateText: {
+    fontSize: 16,
+    color: colors.slate500,
+  },
+  sellButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  sellButtonDisabled: {
+    backgroundColor: colors.slate200,
+  },
+  sellButtonText: {
+    color: colors.white,
+    fontWeight: '700',
+    fontSize: 14,
+    marginLeft: 6,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.md,
+  },
+  modalContent: {
+    backgroundColor: colors.white,
+    borderRadius: spacing.radius,
+    padding: spacing.xl,
+    width: '100%',
+    maxWidth: 400,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: colors.onSurface,
+    marginBottom: 4,
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    color: colors.primary,
+    fontWeight: '600',
+    marginBottom: spacing.lg,
+  },
+  quantityInputGroup: {
+    marginBottom: spacing.xl,
+  },
+  modalLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.onSurface,
+    marginBottom: spacing.sm,
+  },
+  modalInput: {
+    backgroundColor: colors.slate50,
+    borderWidth: 1,
+    borderColor: colors.slate200,
+    borderRadius: 8,
+    padding: spacing.md,
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.onSurface,
+    textAlign: 'center',
+  },
+  availableStockText: {
+    fontSize: 12,
+    color: colors.slate500,
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  cancelButton: {
+    flex: 1,
+    paddingVertical: spacing.md,
+    marginRight: spacing.sm,
+    alignItems: 'center',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.slate200,
+  },
+  cancelButtonText: {
+    color: colors.onSurface,
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  confirmButton: {
+    flex: 1,
+    backgroundColor: colors.primary,
+    paddingVertical: spacing.md,
+    marginLeft: spacing.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 8,
+  },
+  confirmButtonDisabled: {
+    opacity: 0.7,
+  },
+  confirmButtonText: {
+    color: colors.white,
+    fontWeight: '700',
+    fontSize: 16,
   },
 });
