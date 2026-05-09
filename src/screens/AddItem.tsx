@@ -34,7 +34,7 @@ export default function AddItem({ route, navigation }: any) {
 
     const result = await ImagePicker.launchCameraAsync({
       allowsEditing: true,
-      aspect: [4, 3],
+      aspect: [3, 4],
       quality: 0.8,
     });
 
@@ -47,7 +47,7 @@ export default function AddItem({ route, navigation }: any) {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
-      aspect: [4, 3],
+      aspect: [3, 4],
       quality: 0.8,
     });
 
@@ -114,7 +114,7 @@ export default function AddItem({ route, navigation }: any) {
         <View style={tw`p-4`}>
           {/* Image Picker Trigger */}
           <TouchableOpacity 
-            style={tw`h-[180px] bg-white rounded-2xl border border-slate-200 justify-center items-center mb-6 overflow-hidden border-dashed`} 
+            style={[tw`bg-white rounded-2xl border border-slate-200 justify-center items-center mb-6 overflow-hidden border-dashed`, { aspectRatio: 3/4, maxHeight: 450 }]} 
             onPress={handleImageSelection}
           >
             {imageUri ? (
